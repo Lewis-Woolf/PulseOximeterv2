@@ -1,15 +1,17 @@
+#include <Arduino.h>
+#include <Wire.h>
 // Make sure to install the MAX30100lib by OXullo Intersecans
 #include "MAX30100_PulseOximeter.h"
 
 PulseOximeter pox; // High level interface to the sensor
 
 const byte greenLEDPin = A2; // Pin for the green LED
-const byte buttonPin = A1; // Pin for button A
+const byte buttonPin = A1; // Pin for button B
 
 int BPM = 0; // Heartbeats per min
-int poxState = 0; // Determines if the pox is on (1) or off (0)
-int buttonState = 0; // Determines if the button is pressed down or not
-int lastButtonState = 0; // The last state the button was in
+int poxState = -1; // Determines if the pox is on (1) or off (-1)
+int buttonState = 1; // Determines if the button is pressed down or not
+int lastButtonState = 1; // The last state the button was in
 int greenLEDState = LOW; // State of the LED
 
 long reportingPeriod = 5000; // Time between information being printed
@@ -19,6 +21,7 @@ long debounceDelay = 50; // Debounce time to mitigate button noise
 
 void printPOXResults();
 void setPOXState();
+void onBeatDetected();
 
 void setup() 
 {
@@ -26,7 +29,7 @@ void setup()
   pinMode(greenLEDPin, OUTPUT); // Initialise green LED pin
 
   Serial.begin(9600);
-  delay(2000); // Delay for 2000 ms so the serial monitor works properly
+  delay(2000); // Delay for 2s so the serial monitor works properly
 
   Serial.println("Initialising Dual-Wavelength Pulse Oximeter...");
 
@@ -36,7 +39,7 @@ void setup()
   }
   else {
     Serial.println("SUCCESS");
-    Serial.println("Press button A to turn POX on/off");
+    Serial.println("Press button B to turn POX on/off");
   }
 
   // Register the callback for the beat detection function
@@ -61,11 +64,6 @@ void loop()
   setPOXState(); // Set the state of the POX and the green LED
 
   printPOXResults(); // Print the POX results on the serial monitor
-
-  //debugging
-  Serial.print("reading: ");
-  Serial.println(digitalRead(buttonPin));
-  Serial.println("--------");
 }
 
 
@@ -86,10 +84,18 @@ void setPOXState()
     {
       buttonState = reading;
 
-      if (buttonState == HIGH); // If the button is being pressed
+      if (buttonState == LOW); // If the button is being pressed
       {
-        poxState = -poxState;
-        greenLEDState = -greenLEDState;
+        if (lastButtonState == 1) // If the last state was off
+        {
+          poxState = -poxState;
+          if (greenLEDState == LOW) { // If LED is off, turn it on
+            greenLEDState = HIGH;
+          }
+          else { // If LED is on, turn it off
+            greenLEDState = LOW;
+          }
+        }
       }
     }
   }
