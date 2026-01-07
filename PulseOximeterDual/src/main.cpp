@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include <Wire.h>
 #include <SPI.h>
+#include <Wire.h>
 
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
@@ -17,6 +17,8 @@ PulseOximeter pox; // Interface to the sensor
 
 const byte greenLEDPin = A2; // Pin for the green LED
 const byte buttonAPin = A0; // Pin for button A
+const byte SCLPin = A5; // ACL pin for display
+const byte SDAPin = A4; // SDA pin for display
 
 int BPM = 0; // Heartbeats per min
 int poxState = -1; // Determines if the pox is on (1) or off (-1)
@@ -32,24 +34,44 @@ long debounceDelay = 50; // Debounce time to mitigate button noise
 void printPOXResults();
 void setPOXState();
 void onBeatDetected();
-void startupDisplay();
+//void startupDisplay(void);
 
 void setup() 
 {
   pinMode(buttonAPin, INPUT); // Initialise button A pin
   pinMode(greenLEDPin, OUTPUT); // Initialise green LED pin
+  pinMode(SCLPin, OUTPUT); // Initialise SCL pin
+  pinMode(SDAPin, OUTPUT); // Initialise SDA pin
 
   digitalWrite(greenLEDPin, greenLEDState); // Set the state of the green LED
 
   Serial.begin(9600);
-  delay(5000); // Delay for 5s so the serial monitor works properly
+  delay(5000); // Delay by 5s
 
-  Serial.println("Press button A to turn POX on/off");
-  Serial.println("Press button B to switch display");
+  // Initialise POX
+  Serial.println("Initialising Dual-Wavelength Pulse Oximeter...");
+  if (!pox.begin()) {
+    Serial.println("FAILURE");
+  }
+  else {
+    Serial.println("SUCCESS");
+  }
 
   pox.setOnBeatDetectedCallback(onBeatDetected); // Register the callback for the beat detection function
 
-  startupDisplay(); // Display starting screen
+  //Initialise OLED 
+  Serial.println("Initialising OLED Display...");
+  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { // Generate display voltage from 3.3V internally
+    Serial.println(F("FAILURE"));
+  }
+  else {
+    Serial.println("SUCCESS");
+  }
+
+  //startupDisplay();
+
+  Serial.println("Press button A to turn POX on/off");
+  Serial.println("Press button B to switch display");
 }
 
 
@@ -131,7 +153,7 @@ void printPOXResults()
   }
 }
 
-
+/*
 // Create starting display
 void startupDisplay(void)
 {
@@ -147,3 +169,4 @@ void startupDisplay(void)
   delay(3000);
   display.clearDisplay(); // Clear initial display after delay
 }
+*/
