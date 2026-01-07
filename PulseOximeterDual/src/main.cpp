@@ -1,12 +1,22 @@
 #include <Arduino.h>
 #include <Wire.h>
-// Make sure to install the MAX30100lib by OXullo Intersecans
+#include <SPI.h>
+
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include "MAX30100_PulseOximeter.h"
 
-PulseOximeter pox; // High level interface to the sensor
+// Define OLED parameters
+#define SCREEN_WIDTH 96
+#define SCREEN_HEIGHT 16
+#define OLED_RESET -1
+#define SCREEN_ADDRESS 0x3C
+
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET); //Interface to the OLED display
+PulseOximeter pox; // Interface to the sensor
 
 const byte greenLEDPin = A2; // Pin for the green LED
-const byte buttonPin = A1; // Pin for button B
+const byte buttonAPin = A0; // Pin for button A
 
 int BPM = 0; // Heartbeats per min
 int poxState = -1; // Determines if the pox is on (1) or off (-1)
@@ -22,28 +32,24 @@ long debounceDelay = 50; // Debounce time to mitigate button noise
 void printPOXResults();
 void setPOXState();
 void onBeatDetected();
+void startupDisplay();
 
 void setup() 
 {
-  pinMode(buttonPin, INPUT); // Initialise button A pin
+  pinMode(buttonAPin, INPUT); // Initialise button A pin
   pinMode(greenLEDPin, OUTPUT); // Initialise green LED pin
 
+  digitalWrite(greenLEDPin, greenLEDState); // Set the state of the green LED
+
   Serial.begin(9600);
-  delay(2000); // Delay for 2s so the serial monitor works properly
+  delay(5000); // Delay for 5s so the serial monitor works properly
 
-  Serial.println("Initialising Dual-Wavelength Pulse Oximeter...");
+  Serial.println("Press button A to turn POX on/off");
+  Serial.println("Press button B to switch display");
 
-  // Check that the pulse oximeter is working
-  if (!pox.begin()) {
-    Serial.println("FAILURE");
-  }
-  else {
-    Serial.println("SUCCESS");
-    Serial.println("Press button B to turn POX on/off");
-  }
+  pox.setOnBeatDetectedCallback(onBeatDetected); // Register the callback for the beat detection function
 
-  // Register the callback for the beat detection function
-  pox.setOnBeatDetectedCallback(onBeatDetected);
+  startupDisplay(); // Display starting screen
 }
 
 
@@ -72,7 +78,7 @@ void setPOXState()
 {
   digitalWrite(greenLEDPin, greenLEDState); // Set the state of the green LED
 
-  int reading = digitalRead(buttonPin);
+  int reading = digitalRead(buttonAPin);
 
   if (reading != lastButtonState) { // If the button state changes
     lastDebounceTime = millis(); // reset debouncing timer
@@ -123,4 +129,21 @@ void printPOXResults()
       lastReportTime = millis(); // Update report time so loop only runs once every reporting period
     }
   }
+}
+
+
+// Create starting display
+void startupDisplay(void)
+{
+  display.clearDisplay();
+
+  // Set display parameters
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0); // Start at top left corner
+  display.println("Pulse Oximeter");
+
+  display.display(); // Display text
+  delay(3000);
+  display.clearDisplay(); // Clear initial display after delay
 }
