@@ -34,44 +34,27 @@ long debounceDelay = 50; // Debounce time to mitigate button noise
 void printPOXResults();
 void setPOXState();
 void onBeatDetected();
-//void startupDisplay(void);
+void poxOffDisplay(void);
+void poxOnDisplay(void);
 
 void setup() 
 {
   pinMode(buttonAPin, INPUT); // Initialise button A pin
   pinMode(greenLEDPin, OUTPUT); // Initialise green LED pin
-  pinMode(SCLPin, OUTPUT); // Initialise SCL pin
-  pinMode(SDAPin, OUTPUT); // Initialise SDA pin
 
   digitalWrite(greenLEDPin, greenLEDState); // Set the state of the green LED
 
   Serial.begin(9600);
-  delay(5000); // Delay by 5s
+
+  // Initialise OLED display
+  display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS); // Generate display voltage from 3.3V internally
+
+  poxOffDisplay();
 
   // Initialise POX
-  Serial.println("Initialising Dual-Wavelength Pulse Oximeter...");
-  if (!pox.begin()) {
-    Serial.println("FAILURE");
-  }
-  else {
-    Serial.println("SUCCESS");
-  }
+  pox.begin();
 
   pox.setOnBeatDetectedCallback(onBeatDetected); // Register the callback for the beat detection function
-
-  //Initialise OLED 
-  Serial.println("Initialising OLED Display...");
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { // Generate display voltage from 3.3V internally
-    Serial.println(F("FAILURE"));
-  }
-  else {
-    Serial.println("SUCCESS");
-  }
-
-  //startupDisplay();
-
-  Serial.println("Press button A to turn POX on/off");
-  Serial.println("Press button B to switch display");
 }
 
 
@@ -117,11 +100,13 @@ void setPOXState()
         if (lastButtonState == 1) // If the last state was off
         {
           poxState = -poxState;
-          if (greenLEDState == LOW) { // If LED is off, turn it on
-            greenLEDState = HIGH;
+          if (greenLEDState == LOW) { // Turn on/off LED and change display depending on which state the green LED is in
+            greenLEDState = HIGH; // If LED is off, turn it on
+            poxOnDisplay();
           }
-          else { // If LED is on, turn it off
-            greenLEDState = LOW;
+          else {
+            greenLEDState = LOW; // If LED is on, turn it off
+            poxOffDisplay();
           }
         }
       }
@@ -153,20 +138,31 @@ void printPOXResults()
   }
 }
 
-/*
+
 // Create starting display
-void startupDisplay(void)
+void poxOffDisplay(void)
 {
   display.clearDisplay();
 
   // Set display parameters
-  display.setTextSize(1);
+  display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
-  display.setCursor(0, 0); // Start at top left corner
-  display.println("Pulse Oximeter");
+  display.setCursor(0, 0); // Offset text so it starts at the left of the display
+  display.println("POX OFF");
 
   display.display(); // Display text
-  delay(3000);
-  display.clearDisplay(); // Clear initial display after delay
 }
-*/
+
+
+void poxOnDisplay(void)
+{
+  display.clearDisplay();
+
+  // Set display parameters
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0); // Offset text so it starts at the left of the display
+  display.println("POX ON");
+
+  display.display(); // Display text
+}
