@@ -16,6 +16,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET); //Inte
 PulseOximeter pox; // Interface to the sensor
 
 const byte greenLEDPin = A2; // Pin for the green LED
+const byte redLEDPin = A3; // Pin for the red LED
 const byte buttonAPin = A0; // Pin for button A
 const byte buttonBPin = A1; // Pin for button B
 const byte SCLPin = A5; // ACL pin for display
@@ -29,12 +30,15 @@ int lastButtonAState = 1; // The last state button A was in
 int buttonBState = 1; // Determines if button A is pressed down or not
 int lastButtonBState = 1; // The last state button A was in
 
-int greenLEDState = LOW; // State of the LED
+int greenLEDState = LOW; // State of the green LED
+int redLEDState = LOW; // State of the red LED
 
 long reportingPeriod = 5000; // Time between information being printed
 long displayPeriod = 1000; // Time after the display changes text to when it starts displaying measurement results
+long dangerLEDPeriod = 250; // Period for danger LED
 long lastReportTime = 0; // Time since last report
 long displayTimerStart = 0; // Display timer start time
+long DangerLEDTimerStart = 0; // Danger LED timer start time
 long lastDebounceTimeA = 0; // Last time the output pin was toggled for button A
 long lastDebounceTimeB = 0; // Last time the output pin was toggled for button B
 long debounceDelay = 50; // Debounce time to mitigate button noise
@@ -46,6 +50,7 @@ void printPOXResults();
 void poxOffDisplay(void);
 void poxOnDisplay(void);
 void poxMeasurementDisplay(void);
+void dangerLED();
 
 
 void setup() 
@@ -53,8 +58,10 @@ void setup()
   pinMode(buttonAPin, INPUT); // Initialise button A pin
   pinMode(buttonBPin, INPUT); // Initialise button B pin
   pinMode(greenLEDPin, OUTPUT); // Initialise green LED pin
+  pinMode(redLEDPin, OUTPUT); // Initialise red LED pin
 
   digitalWrite(greenLEDPin, greenLEDState); // Set the state of the green LED
+  digitalWrite(redLEDPin, redLEDState); // Set the state of the red LED  
 
   Serial.begin(9600);
 
@@ -86,16 +93,12 @@ void loop()
 {
   pox.update(); // Update POX
 
-  setPOXState(); // Set the state of the POX and the green LED
+  setPOXState(); // Set the state of the POX and the LEDs
 
   if (poxState == 1) {
     setDisplayState(); // Set the state of the display
-  }
-
-  printPOXResults(); // Print the POX results on the serial monitor
-
-  if (poxState == 1) {
-  poxMeasurementDisplay(); // Set the pox display state
+    poxMeasurementDisplay(); // Set the pox display state
+    dangerLED(); // Pulse the red LED if readings are at a dangerous level
   }
 }
 
@@ -105,6 +108,7 @@ void loop()
 void setPOXState()
 {
   digitalWrite(greenLEDPin, greenLEDState); // Set the state of the green LED
+  digitalWrite(redLEDPin, redLEDState); // Set the state of the red LED
 
   int reading = digitalRead(buttonAPin);
 
@@ -130,6 +134,7 @@ void setPOXState()
           }
           else {
             greenLEDState = LOW; // If LED is on, turn it off
+            redLEDState = LOW; // Turn red LED off
             poxOffDisplay();
           }
         }
@@ -178,29 +183,6 @@ void setDisplayState()
 
 
 
-// Print the POX results on the serial monitor
-void printPOXResults()
-{
-  if (poxState == 1)
-  {
-    // Print heart rate and oxidation levels every reporting period
-    if (millis() - lastReportTime > reportingPeriod)
-    {
-      Serial.println("--------------"); // Spacing
-      Serial.print("BPM: "); // Print heart rate
-      Serial.println(pox.getHeartRate());
-      Serial.print("SpO2: "); // Print oxidation levels
-      Serial.print(pox.getSpO2());
-      Serial.println("%");
-      Serial.println("--------------"); // Spacing
-
-      lastReportTime = millis(); // Update report time so loop only runs once every reporting period
-    }
-  }
-}
-
-
-
 // Create display for when pox is off
 void poxOffDisplay(void)
 {
@@ -242,7 +224,7 @@ void poxMeasurementDisplay()
   display.setTextSize(2);
   display.setTextColor(SSD1306_WHITE);
   display.setCursor(0, 0); // Offset text so it starts at the left of the display
-  
+
 
   if (displayState == 1) { // Display BPM
     if ((millis() - displayTimerStart) <= displayPeriod) { // Print text when display period not elapsed
@@ -281,4 +263,36 @@ void poxMeasurementDisplay()
       display.display();
     }
   }
+}
+
+
+
+// Make the red LED pulse if heart rate / SpO2 are at dangerous levels
+void dangerLED()
+{
+  float heartRate = pox.getHeartRate();
+  int SpO2 = pox.getSpO2();
+
+  // If heart rate or SpO2 at dangerous levels
+  if (heartRate < 60 || heartRate > 120 || SpO2 < 93) 
+  {
+    if ((millis() - DangerLEDTimerStart) > dangerLEDPeriod) 
+    {
+      if (!displayState == 0) { // LED does not blink if measurments are not being shown
+        if (redLEDState == LOW) {
+          redLEDState = HIGH;
+        }
+        else {
+          redLEDState = LOW;
+        }
+
+      DangerLEDTimerStart = millis();
+      }
+    }
+  }
+
+  else {
+    redLEDState = LOW; // If not in danger, turn off red LED
+  }
+
 }
