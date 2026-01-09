@@ -78,8 +78,8 @@ int detectVoltageSpikes()
     V4 = Voltage;
   }
 
-  // if all values are greater than threshold voltage, count heartbeat. This stops false positives from noise
-  if (V0 >= thresholdVoltage & V1 >= thresholdVoltage & V2 >= thresholdVoltage & V3 >= thresholdVoltage & V4 >= thresholdVoltage) {
+  // if all values are greater than threshold voltage + average voltage, count heartbeat. This stops false positives from noise
+  if (V0 >= (thresholdVoltage + avgVoltage) & V1 >= (thresholdVoltage + avgVoltage) & V2 >= (thresholdVoltage + avgVoltage) & V3 >= (thresholdVoltage + avgVoltage) & V4 >= (thresholdVoltage + avgVoltage) ) {
     beatDetected = 1;
   }
 
